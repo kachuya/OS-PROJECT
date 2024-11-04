@@ -1,5 +1,4 @@
-NC=3 NW=4 NF=5
-NT=3 NOM=3 NCM=1
+NF=3 NW=4 NT=5
 Burger=00:8 Pizza=00:10 Pasta=00:10 Salad=00:5 Steak=00:8 Sushi=00:5 Tacos=00:5 Soup=00:10
 CustomerID=1 ArrivalTime=12:00 Order=Burger
 CustomerID=2 ArrivalTime=12:01 Order=Pizza
