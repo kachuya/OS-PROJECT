@@ -1,45 +1,162 @@
+/* ---CURRENT CONCERNS---:
+
+chef run method unfilled. waiter run method unfilled. how to make use of both mealTimes and orderedMeal?
+parsing arrival time in minutes and seconds or just minutes?
+how to add the minutes passed inbetween threads sleeping to overall time?
+how can all three classes -- chefs, waiters, customers --
+have correctly assumed how much time has passed from the customer's arrival time
+when it is an attribute unique to the customer class?
+
+*/
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Main {
     static int NF, NW, NT; //customer line, waiters, chefs, tables, ordered meals, cooked meals
-    static Map<String, Integer> mealTimes = new HashMap<>(); // hashmap to store meal times , key = meal name(string)
-                                                             // and int = time to prepare
-    static Queue<Customer> customerKiosk = new ConcurrentLinkedQueue<>(); // list to store customer objects
+    static Map<String, Integer> mealTimes = new HashMap<>();
 
-    static Semaphore customer; 
-    static Semaphore table;    
-    static Semaphore chef;     
-    static Semaphore waiter;
-    static int mutex;
-    
-    static Queue<String> orderQueue = new ConcurrentLinkedQueue<>(); // thread-safe queue to store orders
-    static List<String> cookedMeal = Collections.synchronizedList(new ArrayList<>()); // thread-safe list to store cooked
-    // meals
+    static PriorityBlockingQueue<Order> orderedMeal = new PriorityBlockingQueue<>();
+    static Semaphore tables;
+    static Semaphore ordersReady;
+    static Semaphore mealsReady;
 
-    static AtomicInteger custServed = new AtomicInteger(0); // to count number of customers served
+    private static final ConcurrentHashMap<Integer, Semaphore> customerSemaphores = new ConcurrentHashMap<>();
+    static Queue<Customer> customerKiosk = new LinkedList<Customer>();;
 
-    public static void main(String[] args) throws IOException {
+    static class Customer implements Runnable {
+        int custid;
+        int arrivalTime;
+        String meal;
+        int orderPrepTime;
+
+        public Customer() {
+
+        }
+
+        public void setId(int i) {
+            this.custid = i;
+        }
+
+        public void setTime(String t) {
+            int t1 = Integer.parseInt(t.split(":")[1]);
+            this.arrivalTime = t1;
+        }
+
+        public void setOrder(String o) {
+            this.meal = o;
+            this.orderPrepTime = mealTimes.get(meal);
+        }
+
+        @Override
+        public void run() {
+            while (true) {
+                try {
+                    System.out.println("[" + arrivalTime + "]" + " Customer" + custid + "arrives at the restaraunt");
+                    tables.acquire();
+                    System.out.println("[" + arrivalTime + "]" + " Customer" + custid + "is seated at table "
+                            + (NT - tables.availablePermits()));
+
+                    Semaphore custSemaphore = new Semaphore(0);
+                    customerSemaphores.put(custid, custSemaphore);
+                    
+                    System.out.println("Customer " + custid + "places an order: " + meal);
+                    Order order = new Order(custid, meal);
+                    orderedMeal.put(order);
+                    ordersReady.release();
+
+                    custSemaphore.acquire();
+                    System.out.println("Customer " + custid + " finishes eating and leaves the restaraunt");
+
+                    tables.release();    
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                }
+
+            }
+        }
+    }
+
+    static class Chef implements Runnable {
+        @Override
+        public void run() {
+            // try {
+            //     while (true) {
+
+            //     }
+            // } catch (InterruptedException ex) {
+            //     Thread.currentThread().interrupt();
+            // }
+        }
+    }
+
+    static class Waiter implements Runnable {
+        @Override
+        public void run() {
+            while (true) {
+
+            }
+        }
+    }
+
+    static class Order implements Comparable<Order> {
+        int custid;
+        String mealname;
+        long timestamp;
+
+        Order(int custid, String mealname) {
+            this.custid = custid;
+            this.mealname = mealname;
+            this.timestamp = System.currentTimeMillis();
+        }
+
+        @Override
+        public int compareTo(Order o) {
+            return Long.compare(this.timestamp, o.timestamp);
+        }
+    }
+
+    public static void main(String[] args) throws IOException {     
 
         Random r = new Random(); // to simulate delays
 
         String Rfile = "C:\\Users\\lenah\\Desktop\\OS-PROJECT\\OS-PROJECT\\input files\\restaurant_simulation_input1.txt";
         inputConfig(Rfile);
 
+        tables = new Semaphore(NT);
+        ordersReady = new Semaphore(0);
+        mealsReady = new Semaphore(0);
+
         long startTime = System.currentTimeMillis();
+        System.out.print("Simulation Started with " + NF + " Chefs, " + NW + " Waiters, and " + NT + " Tables.");
 
-        customer = new Semaphore(customerKiosk.size());
-        table = new Semaphore(NT);
-        chef = new Semaphore(NF);
-        waiter = new Semaphore(NW);
+        for (int i = 0; i < NF; i++) {
+            Thread chef = new Thread(new Chef());
+            chef.start();
+        }
 
-        System.out.print("Simulation Started with " + NF + " Chefs, " + NW + " Waiters, and " + NT + " Tables.");        
+        for (int i = 0; i < NW; i++) {
+            Thread waiter = new Thread(new Waiter());
+            waiter.start();
+        }
+
+        for (Customer c : customerKiosk) {
+            Thread customer = new Thread(c);
+            customer.start();
+
+            try {
+                Thread.sleep(8000);
+            }
+            catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        long endTime = System.currentTimeMillis();
+        System.out.println("simulation ended at " + (endTime - startTime));
 
     }
 
@@ -82,120 +199,4 @@ public class Main {
 
         br.close(); // Close the BufferedReader
     }
-
-}
-
-class Restaraunt {
-    
-}
-
-class Customer extends Main implements Runnable { 
-    int custid;
-    int arrivalTime;
-    String order;                            
-    int orderPrepTime;
-
-
-    // public Customer() {
-
-    // }
-    
-    public void setId(int i) {
-        this.custid = i;
-    }
-    
-    public void setTime(String t) {
-        int t1 = Integer.parseInt(t.split(":")[1]) - 8;
-        this.arrivalTime = t1;
-    }
-    
-    public void setOrder(String o) {
-        this.order = o;
-        this.orderPrepTime = mealTimes.get(order);
-    }
-
-    @Override
-    public void run() {
-        try {
-            
-        }
-        catch (InterruptedException ex) {
-
-        }
-        
-        // int m = Integer.parseInt(arrivalTime.split(":")[1]) - 8;
-        // TimeUnit.MINUTES.sleep(m);
-
-        //     System.out.printf("%n[%s] Customer %d arrives.%n", arrivalTime, custid);
-            
-
-        //     // Place the order
-        //     synchronized (orderQueue) {
-        //         orderQueue.add(new Order(custid, order));
-        //         System.out.printf("%n[%s] Customer %d places an order: %s.%n", arrivalTime, id, order);
-
-        //         //wait for  order
-        //         TimeUnit.MINUTES.sleep(orderPrepTime);
-        //         System.out.printf("[%s] Customer %d finishes eating and leaves the restaurant.%n", arrivalTime, id);
-
-                // Release the table
-                // tables.remove();
-    }
-}
-
-    // public void getSeated() { // produce -- customer is seated at a table
-               
-    // }
-
-class Chef implements Runnable {
-
-    int chefid;
-
-    public Chef(int i) {
-        this.chefid = i;
-    }
-
-    @Override
-    public void run() {
-        try {
-            
-        }
-        catch (InterruptedException ex) {
-            
-        }
-    }
-
-    // public void cookMeal() { // consume -- chef begins preparing a customer's ordered meal from orderedMeal
-
-    // }
-    
-    // public void hands() { // produce -- produce a meal in cookedMeal
-
-    // }
-}
-
-class Waiter implements Runnable {
-
-    int waiterid;
-
-    public Waiter(int i) {
-
-    }
-
-    @Override
-    public void run() {
-        try {
-
-        } catch (InterruptedException ex) {
-
-        }
-    }
-
-    // public void removeSeat() { // consume -- waiter releases a table after customer has left
-
-    // }
-
-    // public void serveMeal() { // consume -- waiter serves a meal to customer from cookedMeal
-
-    // }
 }
