@@ -20,21 +20,25 @@ public class Main {
     static Map<String, Integer> mealTimes = new HashMap<>();
 
     static PriorityBlockingQueue<Order> orderedMeal = new PriorityBlockingQueue<>();
+    static PriorityBlockingQueue<Order> cookedMeal = new PriorityBlockingQueue<>();
+    static PriorityBlockingQueue<Integer> table = new PriorityBlockingQueue<>();
+
     static Semaphore tables;
     static Semaphore ordersReady;
     static Semaphore mealsReady;
+    static Semaphore custSemaphore;
 
-    private static final ConcurrentHashMap<Integer, Semaphore> customerSemaphores = new ConcurrentHashMap<>();
     static Queue<Customer> customerKiosk = new LinkedList<Customer>();;
 
     static class Customer implements Runnable {
         int custid;
         int arrivalTime;
         String meal;
-        int orderPrepTime;
+        // int orderPrepTime;
 
-        public Customer() {
-
+        public Customer(int i, String m) {
+            this.custid = i;
+            this.meal = m;
         }
 
         public void setId(int i) {
@@ -48,56 +52,97 @@ public class Main {
 
         public void setOrder(String o) {
             this.meal = o;
-            this.orderPrepTime = mealTimes.get(meal);
+            // this.orderPrepTime = mealTimes.get(meal);
         }
 
         @Override
         public void run() {
             while (true) {
                 try {
-                    System.out.println("[" + arrivalTime + "]" + " Customer" + custid + "arrives at the restaraunt");
                     tables.acquire();
-                    System.out.println("[" + arrivalTime + "]" + " Customer" + custid + "is seated at table "
-                            + (NT - tables.availablePermits()));
+                    System.out.println("[" + "]" + " Customer " + this.custid + " arrives at the restaraunt");
+                    System.out.println("[" + "]" + " Customer "  + this.custid + " is seated at table ");
 
-                    Semaphore custSemaphore = new Semaphore(0);
-                    customerSemaphores.put(custid, custSemaphore);
-                    
-                    System.out.println("Customer " + custid + "places an order: " + meal);
-                    Order order = new Order(custid, meal);
-                    orderedMeal.put(order);
+                    System.out.println("Customer " + this.custid + " places an order: " + this.meal);
+                    Order order = new Order(this.custid, this.meal);
+                    orderedMeal.put(order); //produce order
                     ordersReady.release();
 
+                    // System.out.println("hello! im reachable :D!");
+                    tables.release();
                     custSemaphore.acquire();
-                    System.out.println("Customer " + custid + " finishes eating and leaves the restaraunt");
 
-                    tables.release();    
                 } catch (InterruptedException ex) {
+                    System.out.println("inside interruption");
                     Thread.currentThread().interrupt();
                 }
 
             }
         }
     }
+    
+    static class Waiter implements Runnable {
 
-    static class Chef implements Runnable {
+        int waitid;
+
+        public Waiter(int i) {
+            this.waitid = i;
+        }
+
         @Override
         public void run() {
-            // try {
-            //     while (true) {
+            try {
+                while (true) {
+                    mealsReady.acquire();
+                    
+                    Order order = cookedMeal.take();
 
-            //     }
-            // } catch (InterruptedException ex) {
-            //     Thread.currentThread().interrupt();
-            // }
+                    System.out.println(
+                            "Waiter " + waitid + " serves meal " + order.mealname + " to customer " + order.custid);
+
+                    System.out.println("Customer " + order.custid + " finishes eating and leaves the restaraunt");
+                    System.out.println("Table " + " is now available");
+
+
+                    // System.out.println("hi-sies");
+                    tables.release();
+                    custSemaphore.release(0);
+                }
+            }
+            catch (InterruptedException ex) {
+                System.out.println("inside interruption");
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
-    static class Waiter implements Runnable {
+    static class Chef implements Runnable {
+
+        int chefid;
+
+        public Chef(int i){
+            this.chefid = i;
+        }
+
         @Override
         public void run() {
-            while (true) {
+            try {
+                while (true) {
+                    ordersReady.acquire();
+                    Order order = orderedMeal.take();
 
+                    System.out.println("Chef " + chefid + " begins preparing " + order.mealname + " for customer " + order.custid);
+                    Thread.sleep(1000);
+                    System.out.println("Chef " + chefid + " finishes preparing " + order.mealname + " for customer "
+                            + order.custid);
+                    
+                    cookedMeal.put(order);
+                    mealsReady.release();
+                    // System.out.println("hellooooo from the other side");
+                }
+            } catch (InterruptedException ex) {
+                System.out.println("inside interruption");
+                Thread.currentThread().interrupt();
             }
         }
     }
@@ -129,18 +174,19 @@ public class Main {
         tables = new Semaphore(NT);
         ordersReady = new Semaphore(0);
         mealsReady = new Semaphore(0);
+        custSemaphore = new Semaphore(0);
 
         long startTime = System.currentTimeMillis();
-        System.out.print("Simulation Started with " + NF + " Chefs, " + NW + " Waiters, and " + NT + " Tables.");
-
-        for (int i = 0; i < NF; i++) {
-            Thread chef = new Thread(new Chef());
-            chef.start();
-        }
+        System.out.println("Simulation Started with " + NF + " Chefs, " + NW + " Waiters, and " + NT + " Tables");
 
         for (int i = 0; i < NW; i++) {
-            Thread waiter = new Thread(new Waiter());
+            Thread waiter = new Thread(new Waiter(i+1));
             waiter.start();
+        }
+
+        for (int i = 0; i < NF; i++) {
+            Thread chef = new Thread(new Chef(i+1));
+            chef.start();
         }
 
         for (Customer c : customerKiosk) {
@@ -151,6 +197,7 @@ public class Main {
                 Thread.sleep(8000);
             }
             catch (InterruptedException ex) {
+                System.out.println("inside interruption");
                 Thread.currentThread().interrupt();
             }
         }
@@ -188,7 +235,7 @@ public class Main {
         String remainingline;
 
         while ((remainingline = br.readLine()) != null) {
-            Customer c = new Customer();
+            Customer c = new Customer(0, " ");
             String[] parts = remainingline.split(" ");
 
             c.setId(Integer.parseInt(parts[0].split("=")[1]));
