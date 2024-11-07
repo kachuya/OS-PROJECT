@@ -1,6 +1,5 @@
 /* ---CURRENT CONCERNS---:
 
-chef run method unfilled. waiter run method unfilled. how to make use of both mealTimes and orderedMeal?
 parsing arrival time in minutes and seconds or just minutes?
 how to add the minutes passed inbetween threads sleeping to overall time?
 how can all three classes -- chefs, waiters, customers --
