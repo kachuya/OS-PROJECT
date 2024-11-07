@@ -63,7 +63,7 @@ public class Main {
                     System.out.println("[" + "]" + " Customer " + this.custid + " arrives at the restaraunt");
                     System.out.println("[" + "]" + " Customer "  + this.custid + " is seated at table ");
 
-                    System.out.println("Customer " + this.custid + " places an order: " + this.meal);
+                    System.out.println("[" + "]" + " Customer " + this.custid + " places an order: " + this.meal);
                     Order order = new Order(this.custid, this.meal);
                     orderedMeal.put(order); //produce order
                     ordersReady.release();
@@ -98,9 +98,12 @@ public class Main {
                     Order order = cookedMeal.take();
 
                     System.out.println(
-                            "Waiter " + waitid + " serves meal " + order.mealname + " to customer " + order.custid);
+                            "[" + "]" + " Waiter " + waitid + " serves meal " + order.mealname + " to customer "
+                                    + order.custid);
 
-                    System.out.println("Customer " + order.custid + " finishes eating and leaves the restaraunt");
+                    Thread.sleep(1000);
+                    System.out.println(
+                            "[" + "]" + " Customer " + order.custid + " finishes eating and leaves the restaraunt");
                     System.out.println("Table " + " is now available");
 
 
@@ -131,9 +134,9 @@ public class Main {
                     ordersReady.acquire();
                     Order order = orderedMeal.take();
 
-                    System.out.println("Chef " + chefid + " begins preparing " + order.mealname + " for customer " + order.custid);
+                    System.out.println("[" + "]" + " Chef " + chefid + " begins preparing " + order.mealname + " for customer " + order.custid);
                     Thread.sleep(1000);
-                    System.out.println("Chef " + chefid + " finishes preparing " + order.mealname + " for customer "
+                    System.out.println("[" + "]" + " Chef " + chefid + " finishes preparing " + order.mealname + " for customer "
                             + order.custid);
                     
                     cookedMeal.put(order);
@@ -204,6 +207,7 @@ public class Main {
 
         long endTime = System.currentTimeMillis();
         System.out.println("simulation ended at " + (endTime - startTime));
+        System.out.println("cusomers served: " + customerKiosk.size());
 
     }
 
