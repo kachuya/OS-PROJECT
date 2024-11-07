@@ -68,7 +68,6 @@ public class Main {
                     ordersReady.release();
 
                     // System.out.println("hello! im reachable :D!");
-                    tables.release();
                     custSemaphore.acquire();
 
                 } catch (InterruptedException ex) {
@@ -100,7 +99,7 @@ public class Main {
                             "[" + "]" + " Waiter " + waitid + " serves meal " + order.mealname + " to customer "
                                     + order.custid);
 
-                    Thread.sleep(1000);
+                    // Thread.sleep(1000);
                     System.out.println(
                             "[" + "]" + " Customer " + order.custid + " finishes eating and leaves the restaraunt");
                     System.out.println("Table " + " is now available");
@@ -170,7 +169,7 @@ public class Main {
 
         Random r = new Random(); // to simulate delays
 
-        String Rfile = "C:\\Users\\lenah\\Desktop\\OS-PROJECT\\OS-PROJECT\\input files\\restaurant_simulation_input1.txt";
+        String Rfile = "C:\\Users\\lenah\\Desktop\\OS-PROJECT\\OS-PROJECT\\input files\\restaurant_simulation_input3.txt";
         inputConfig(Rfile);
 
         tables = new Semaphore(NT);
